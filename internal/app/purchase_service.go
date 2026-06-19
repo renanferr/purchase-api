@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/example/purchase-api/internal/domain"
-	"github.com/example/purchase-api/internal/ports"
 	"github.com/google/uuid"
+	"github.com/renanferr/purchase-api/internal/domain"
+	"github.com/renanferr/purchase-api/internal/ports"
 	"github.com/shopspring/decimal"
 )
 

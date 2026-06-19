@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/example/purchase-api/internal/ports"
 	"github.com/joho/godotenv"
+	"github.com/renanferr/purchase-api/internal/ports"
 )
 
 // AppConfig holds all application configuration

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/example/purchase-api/internal/app"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/renanferr/purchase-api/internal/app"
 	"github.com/shopspring/decimal"
 )
 

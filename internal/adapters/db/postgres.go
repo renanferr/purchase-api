@@ -5,13 +5,13 @@ import (
 	"errors"
 	"time"
 
-	"github.com/example/purchase-api/internal/db"
-	"github.com/example/purchase-api/internal/domain"
-	"github.com/example/purchase-api/internal/ports"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/renanferr/purchase-api/internal/db"
+	"github.com/renanferr/purchase-api/internal/domain"
+	"github.com/renanferr/purchase-api/internal/ports"
 	"github.com/shopspring/decimal"
 )
 

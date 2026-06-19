@@ -9,8 +9,8 @@ import (
 
 	"context"
 
-	"github.com/example/purchase-api/internal/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/renanferr/purchase-api/internal/migrations"
 )
 
 func main() {

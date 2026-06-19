@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/example/purchase-api/internal/domain"
 	"github.com/google/uuid"
+	"github.com/renanferr/purchase-api/internal/domain"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/suite"
 )

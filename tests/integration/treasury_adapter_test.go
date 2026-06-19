@@ -1,25 +1,26 @@
-package treasury
+package integration
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	"github.com/renanferr/purchase-api/internal/adapters/treasury"
 	"github.com/renanferr/purchase-api/internal/ports"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/suite"
 )
 
-// SampleProviderContractTestSuite tests the Treasury Rate Provider contract
-type SampleProviderContractTestSuite struct {
+// TreasuryAdapterContractTestSuite tests the Treasury Rate Provider contract
+type TreasuryAdapterContractTestSuite struct {
 	suite.Suite
 	provider ports.TreasuryRateProvider
 }
 
 // SetupSuite initializes test fixtures
-func (suite *SampleProviderContractTestSuite) SetupSuite() {
+func (suite *TreasuryAdapterContractTestSuite) SetupSuite() {
 	// Initialize sample provider for contract testing
-	suite.provider = NewSampleTreasuryRateProvider(
+	suite.provider = treasury.NewSampleTreasuryRateProvider(
 		decimal.NewFromFloat(0.92),
 		"EUR",
 		time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC),
@@ -29,7 +30,7 @@ func (suite *SampleProviderContractTestSuite) SetupSuite() {
 }
 
 // TestSampleProvider_ReturnsDeterministicRates validates deterministic rate responses
-func (suite *SampleProviderContractTestSuite) TestSampleProvider_ReturnsDeterministicRates() {
+func (suite *TreasuryAdapterContractTestSuite) TestSampleProvider_ReturnsDeterministicRates() {
 	ctx := context.Background()
 
 	// The sample provider is configured for EUR with rate 0.92
@@ -42,7 +43,7 @@ func (suite *SampleProviderContractTestSuite) TestSampleProvider_ReturnsDetermin
 }
 
 // TestSampleProvider_RatesAreDeterministic validates same input returns same rate
-func (suite *SampleProviderContractTestSuite) TestSampleProvider_RatesAreDeterministic() {
+func (suite *TreasuryAdapterContractTestSuite) TestSampleProvider_RatesAreDeterministic() {
 	ctx := context.Background()
 
 	// Call same request twice
@@ -61,7 +62,7 @@ func (suite *SampleProviderContractTestSuite) TestSampleProvider_RatesAreDetermi
 }
 
 // TestSampleProvider_USDPassThrough validates USD currency returns 1.0 rate
-func (suite *SampleProviderContractTestSuite) TestSampleProvider_USDPassThrough() {
+func (suite *TreasuryAdapterContractTestSuite) TestSampleProvider_USDPassThrough() {
 	ctx := context.Background()
 
 	rate, currency, _, err := suite.provider.LatestRateBeforeDate(ctx, "USD", time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC))
@@ -72,7 +73,7 @@ func (suite *SampleProviderContractTestSuite) TestSampleProvider_USDPassThrough(
 }
 
 // TestSampleProvider_RateStructure validates rate object structure
-func (suite *SampleProviderContractTestSuite) TestSampleProvider_RateStructure() {
+func (suite *TreasuryAdapterContractTestSuite) TestSampleProvider_RateStructure() {
 	ctx := context.Background()
 
 	rate, currency, rateDate, err := suite.provider.LatestRateBeforeDate(ctx, "EUR", time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC))
@@ -86,7 +87,7 @@ func (suite *SampleProviderContractTestSuite) TestSampleProvider_RateStructure()
 }
 
 // TestSampleProvider_CurrencyCodeValidation validates currency format handling
-func (suite *SampleProviderContractTestSuite) TestSampleProvider_CurrencyCodeValidation() {
+func (suite *TreasuryAdapterContractTestSuite) TestSampleProvider_CurrencyCodeValidation() {
 	ctx := context.Background()
 
 	testCases := []struct {
@@ -123,7 +124,7 @@ func (suite *SampleProviderContractTestSuite) TestSampleProvider_CurrencyCodeVal
 }
 
 // TestSampleProvider_DateHandling validates date parameter handling
-func (suite *SampleProviderContractTestSuite) TestSampleProvider_DateHandling() {
+func (suite *TreasuryAdapterContractTestSuite) TestSampleProvider_DateHandling() {
 	ctx := context.Background()
 
 	testCases := []struct {
@@ -164,7 +165,7 @@ func (suite *SampleProviderContractTestSuite) TestSampleProvider_DateHandling() 
 	}
 }
 
-// TestSampleProviderContractTestSuite entry point
-func TestSampleProviderContractTestSuite(t *testing.T) {
-	suite.Run(t, new(SampleProviderContractTestSuite))
+// TestTreasuryAdapterContractTestSuite entry point
+func TestTreasuryAdapterContractTestSuite(t *testing.T) {
+	suite.Run(t, new(TreasuryAdapterContractTestSuite))
 }

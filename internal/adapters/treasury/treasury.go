@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/example/purchase-api/internal/ports"
+	"github.com/renanferr/purchase-api/internal/ports"
 	"github.com/shopspring/decimal"
 )
 

@@ -20,12 +20,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/example/purchase-api/internal/adapters/db"
-	"github.com/example/purchase-api/internal/api"
-	"github.com/example/purchase-api/internal/app"
-	"github.com/example/purchase-api/internal/config"
-	"github.com/example/purchase-api/internal/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/renanferr/purchase-api/internal/adapters/db"
+	"github.com/renanferr/purchase-api/internal/api"
+	"github.com/renanferr/purchase-api/internal/app"
+	"github.com/renanferr/purchase-api/internal/config"
+	"github.com/renanferr/purchase-api/internal/migrations"
 )
 
 func main() {

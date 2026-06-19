@@ -1,4 +1,4 @@
-module github.com/example/purchase-api
+module github.com/renanferr/purchase-api
 
 go 1.25.0
 
