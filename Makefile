@@ -51,14 +51,14 @@ install-tools: ## Install required development tools
 	$(GO) install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 	$(GO) install github.com/swaggo/swag/cmd/swag@latest
 
-build: ## Build the application binary
+build: swagger-generate ## Build the application binary
 	$(GO) build -o bin/purchase-api ./cmd/purchase-api
 
-build-no-cache: ## Build the application binary (no cache)
+build-no-cache: swagger-generate ## Build the application binary (no cache)
 	$(GO) clean -cache
 	$(GO) build -o bin/purchase-api ./cmd/purchase-api
 
-run-dev: ## Run the application with 'go run' (requires postgres in docker)
+run-dev: swagger-generate ## Run the application with 'go run' (requires postgres in docker)
 	@echo Starting purchase-api with 'go run'...
 	@echo Make sure postgres is running: make docker-up
 	$(GO) run ./cmd/purchase-api/main.go

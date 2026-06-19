@@ -145,7 +145,10 @@ func (s *PurchaseService) getRateFromTreasuryAndCache(ctx context.Context, purch
 	}
 
 	if !withinSixMonths(rateDate, purchase.TransactionDate) {
-		return nil, errors.New("no valid rate exists within 6 months")
+		return nil, &domain.RateNotFoundError{
+			Currency: currency,
+			Date:     purchase.TransactionDate,
+		}
 	}
 
 	// Try to cache the rate (ignore duplicate key errors)

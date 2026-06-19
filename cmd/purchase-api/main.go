@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,13 +30,21 @@ import (
 	"github.com/renanferr/purchase-api/internal/migrations"
 )
 
+// Startup timeouts and durations
+const (
+	startupTimeout   = 30 * time.Second
+	migrationTimeout = 30 * time.Second
+	shutdownTimeout  = 30 * time.Second
+)
+
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Create startup context with adequate timeout for initialization
+	startupCtx, cancel := context.WithTimeout(context.Background(), startupTimeout)
 	defer cancel()
 
 	// Build application config using options pattern
 	// Can override defaults with options: config.WithAPIPort("9000"), config.WithRealProvider(), etc.
-	cfg, err := config.BuildConfig(ctx)
+	cfg, err := config.BuildConfig(startupCtx)
 	if err != nil {
 		if cfg.Logger != nil {
 			cfg.Logger.Error("failed to build config", "error", err)
@@ -45,7 +55,7 @@ func main() {
 	}
 
 	// Initialize database connection
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	pool, err := pgxpool.New(startupCtx, cfg.DatabaseURL)
 	if err != nil {
 		cfg.Logger.Error("unable to create connection pool", "error", err)
 		os.Exit(1)
@@ -53,12 +63,13 @@ func main() {
 	defer pool.Close()
 
 	// Verify database connectivity
-	if err := pool.Ping(ctx); err != nil {
+	if err := pool.Ping(startupCtx); err != nil {
 		cfg.Logger.Error("unable to ping database", "error", err)
 		os.Exit(1)
 	}
 
 	// Run database migrations
+	// Note: migrations should complete within migrationTimeout threshold
 	migrationRunner := migrations.NewRunner(pool, "db/migrations")
 	if err := migrationRunner.Up(); err != nil {
 		cfg.Logger.Error("failed to run migrations", "error", err)
@@ -84,9 +95,33 @@ func main() {
 		WriteTimeout: cfg.HTTPTimeout,
 	}
 
-	cfg.Logger.Info("starting purchase-api", "port", cfg.APIPort, "provider", os.Getenv("TREASURY_PROVIDER"))
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		cfg.Logger.Error("server failed", "error", err)
+	// Channel to receive shutdown signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start server in a goroutine to handle shutdown signals
+	go func() {
+		cfg.Logger.Info("starting purchase-api", "port", cfg.APIPort, "provider", os.Getenv("TREASURY_PROVIDER"))
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			cfg.Logger.Error("server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Wait for shutdown signal
+	sig := <-sigChan
+	cfg.Logger.Info("shutdown signal received", "signal", sig.String())
+
+	// Gracefully shutdown the server with timeout
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		cfg.Logger.Error("server shutdown error", "error", err)
 		os.Exit(1)
 	}
+
+	// Clean up database connection
+	pool.Close()
+	cfg.Logger.Info("server shutdown complete")
 }

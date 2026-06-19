@@ -24,5 +24,12 @@ type TreasuryRateProvider interface {
 }
 
 type Logger interface {
+	LogCreate(ctx context.Context, purchaseID string, metadata map[string]interface{})
+	LogCreateError(ctx context.Context, errorCode, message string, metadata map[string]interface{})
+	LogRetrieve(ctx context.Context, purchaseID string, metadata map[string]interface{})
+	LogRetrieveError(ctx context.Context, purchaseID, errorCode, message string, metadata map[string]interface{})
+	LogConversion(ctx context.Context, purchaseID, currency, amount string, metadata map[string]interface{})
+	LogConversionError(ctx context.Context, purchaseID, currency, errorCode, message string, metadata map[string]interface{})
 	LogTreasuryAPIQuery(ctx context.Context, currency, purchaseDate, purchaseID string)
+	Error(message string, attrs map[string]interface{})
 }

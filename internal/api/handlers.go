@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/renanferr/purchase-api/internal/app"
+	"github.com/renanferr/purchase-api/internal/domain"
 	"github.com/shopspring/decimal"
 )
 
@@ -27,6 +29,14 @@ func NewRouter(service *app.PurchaseService, opts ...RouterOption) http.Handler 
 	for _, opt := range opts {
 		opt(&config)
 	}
+
+	// Add panic recovery middleware (prevents crashes from unhandled panics)
+	r.Use(middleware.Recoverer)
+
+	// Add request body size limit (1MB max)
+	r.Use(func(next http.Handler) http.Handler {
+		return http.MaxBytesHandler(next, 1024*1024)
+	})
 
 	// T028.5: Add request ID middleware for tracing
 	r.Use(RequestIDMiddleware)
@@ -47,6 +57,24 @@ func NewRouter(service *app.PurchaseService, opts ...RouterOption) http.Handler 
 	// Purchase endpoints
 	r.Post("/purchases", createPurchaseHandler(service, logger))
 	r.Get("/purchases/{id}", getPurchaseHandler(service, logger))
+
+	// Custom 404 handler
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		requestID := uuid.New().String()
+		if rid := r.Header.Get("X-Request-ID"); rid != "" {
+			requestID = rid
+		}
+		writeErrorResponse(w, http.StatusNotFound, ErrorCodeNotFound, "Route not found", requestID)
+	})
+
+	// Custom 405 handler (method not allowed)
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		requestID := uuid.New().String()
+		if rid := r.Header.Get("X-Request-ID"); rid != "" {
+			requestID = rid
+		}
+		writeErrorResponse(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed", requestID)
+	})
 
 	return r
 }
@@ -123,7 +151,12 @@ func createPurchaseHandler(service *app.PurchaseService, logger *Logger) http.Ha
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Request-ID", requestID)
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(resp)
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			logger.Error("failed to encode create purchase response", map[string]interface{}{
+				"request_id": requestID,
+				"error":      err.Error(),
+			})
+		}
 
 		logger.LogCreate(ctx, purchase.ID.String(), map[string]interface{}{
 			"request_id":       requestID,
@@ -218,11 +251,11 @@ func getPurchaseHandler(service *app.PurchaseService, logger *Logger) http.Handl
 		purchase, conversion, found, err := service.GetPurchaseWithConversion(ctx, id, currency)
 		if err != nil {
 			// Check if it's a rate not found error
-			if strings.Contains(err.Error(), "no valid rate") || strings.Contains(err.Error(), "no exchange rate") {
+			if domain.IsRateNotFoundError(err) {
 				logger.LogConversionError(ctx, id, currency, ErrorCodeRateNotFound, err.Error(), map[string]interface{}{
 					"request_id": requestID,
 				})
-				writeErrorResponse(w, http.StatusBadRequest, ErrorCodeRateNotFound, "No exchange rate available for "+currency+" on or before "+purchase.TransactionDate.Format("2006-01-02"), requestID)
+				writeErrorResponse(w, http.StatusBadRequest, ErrorCodeRateNotFound, "No exchange rate available for "+currency+" on or before the transaction date", requestID)
 				return
 			}
 			logger.LogConversionError(ctx, id, currency, ErrorCodeValidationError, err.Error(), map[string]interface{}{
@@ -259,11 +292,19 @@ func getPurchaseHandler(service *app.PurchaseService, logger *Logger) http.Handl
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Request-ID", requestID)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			logger.Error("failed to encode get purchase response", map[string]interface{}{
+				"request_id": requestID,
+				"error":      err.Error(),
+			})
+			return
+		}
 
-		logger.LogConversion(ctx, id, currency, conversion.Amount, map[string]interface{}{
-			"request_id": requestID,
-		})
+		if conversion != nil {
+			logger.LogConversion(ctx, id, currency, conversion.Amount, map[string]interface{}{
+				"request_id": requestID,
+			})
+		}
 	}
 }
 
@@ -385,9 +426,13 @@ func healthHandler(logger *Logger) http.HandlerFunc {
 		w.Header().Set("X-Request-ID", requestID)
 		w.WriteHeader(http.StatusOK)
 
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"status": "ok",
-		})
+		}); err != nil {
+			logger.Error("failed to encode health response", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
 	}
 }
 
@@ -413,10 +458,14 @@ func readinessHandler(pool *pgxpool.Pool, logger *Logger) http.HandlerFunc {
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("X-Request-ID", requestID)
 				w.WriteHeader(http.StatusServiceUnavailable)
-				json.NewEncoder(w).Encode(map[string]string{
+				if encErr := json.NewEncoder(w).Encode(map[string]string{
 					"status": "not ready",
 					"error":  "database not available",
-				})
+				}); encErr != nil {
+					logger.Error("failed to encode readiness error response", map[string]interface{}{
+						"error": encErr.Error(),
+					})
+				}
 				logger.Error("readiness check failed - database unavailable", map[string]interface{}{
 					"request_id": requestID,
 					"error":      err.Error(),
@@ -428,8 +477,12 @@ func readinessHandler(pool *pgxpool.Pool, logger *Logger) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Request-ID", requestID)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"status": "ok",
-		})
+		}); err != nil {
+			logger.Error("failed to encode readiness response", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
 	}
 }
