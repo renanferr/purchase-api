@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/renanferr/purchase-api/internal/adapters/db"
 	"github.com/renanferr/purchase-api/internal/adapters/treasury"
@@ -48,6 +49,9 @@ func (suite *ErrorPathTestSuite) SetupSuite() {
 		// Default to separate test database: purchase_api_test
 		dbURL = "postgres://postgres:postgres@localhost:5432/purchase_api_test?sslmode=disable"
 	}
+
+	// Ensure test database exists (for CI/CD compatibility)
+	suite.ensureDatabaseExists(ctx, dbURL)
 
 	// Connect to database
 	pool, err := pgxpool.New(ctx, dbURL)
@@ -90,6 +94,81 @@ func (suite *ErrorPathTestSuite) SetupSuite() {
 	suite.client = &http.Client{
 		Timeout: 5 * time.Second,
 	}
+}
+
+// ensureDatabaseExists creates the test database if it doesn't exist
+// This is required for CI/CD environments where the database doesn't exist yet
+func (suite *ErrorPathTestSuite) ensureDatabaseExists(ctx context.Context, testDBURL string) {
+	// Extract database name and build admin connection URL
+	// Convert postgres://user:pass@host:port/dbname?sslmode=X to postgres://user:pass@host:port/postgres?sslmode=X
+	adminURL := convertURLToPostgresDB(testDBURL)
+
+	adminPool, err := pgxpool.New(ctx, adminURL)
+	if err != nil {
+		suite.T().Logf("Warning: Could not create admin connection to create test database: %v", err)
+		return
+	}
+	defer adminPool.Close()
+
+	// Extract database name from test URL
+	dbName := extractDatabaseName(testDBURL)
+
+	// Create database if it doesn't exist
+	createSQL := fmt.Sprintf("CREATE DATABASE %s ENCODING 'UTF8'", pgx.Identifier{dbName}.Sanitize())
+	_, err = adminPool.Exec(ctx, createSQL)
+	if err != nil && !isAlreadyExistsError(err) {
+		suite.T().Logf("Warning: Could not create test database: %v", err)
+		// Don't fail the test setup - maybe the database already exists
+	}
+}
+
+// convertURLToPostgresDB converts a database URL to connect to the postgres database instead
+func convertURLToPostgresDB(dbURL string) string {
+	// Simple replacement - convert /purchase_api_test? to /postgres?
+	if idx := lastIndexOf(dbURL, '/'); idx != -1 {
+		if qIdx := lastIndexOf(dbURL, '?'); qIdx != -1 {
+			return dbURL[:idx+1] + "postgres" + dbURL[qIdx:]
+		}
+		return dbURL[:idx+1] + "postgres"
+	}
+	return dbURL
+}
+
+// extractDatabaseName extracts the database name from a PostgreSQL connection URL
+func extractDatabaseName(dbURL string) string {
+	start := lastIndexOf(dbURL, '/') + 1
+	if start == 0 {
+		return "purchase_api_test"
+	}
+	end := lastIndexOf(dbURL, '?')
+	if end == -1 {
+		return dbURL[start:]
+	}
+	return dbURL[start:end]
+}
+
+// isAlreadyExistsError checks if error is due to database already existing
+func isAlreadyExistsError(err error) bool {
+	return err != nil && contains(err.Error(), "already exists")
+}
+
+// Helper functions
+func lastIndexOf(s string, c byte) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
+
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 // TearDownSuite runs once after all tests in the suite

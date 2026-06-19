@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/renanferr/purchase-api/internal/adapters/db"
 	"github.com/renanferr/purchase-api/internal/adapters/treasury"
@@ -51,6 +52,9 @@ func (suite *PurchaseAPIIntegrationTestSuite) SetupSuite() {
 		// Default to separate test database: purchase_api_test
 		dbURL = "postgres://postgres:postgres@localhost:5432/purchase_api_test?sslmode=disable"
 	}
+
+	// Ensure test database exists (for CI/CD compatibility)
+	suite.ensureDatabaseExists(ctx, dbURL)
 
 	// Connect to database
 	pool, err := pgxpool.New(ctx, dbURL)
@@ -122,6 +126,32 @@ func (suite *PurchaseAPIIntegrationTestSuite) SetupSuite() {
 	}
 	err = suite.rateRepo.Create(ctx, usdRate)
 	suite.NoError(err)
+}
+
+// ensureDatabaseExists creates the test database if it doesn't exist
+// This is required for CI/CD environments where the database doesn't exist yet
+func (suite *PurchaseAPIIntegrationTestSuite) ensureDatabaseExists(ctx context.Context, testDBURL string) {
+	// Extract database name and build admin connection URL
+	// Convert postgres://user:pass@host:port/dbname?sslmode=X to postgres://user:pass@host:port/postgres?sslmode=X
+	adminURL := convertURLToPostgresDB(testDBURL)
+
+	adminPool, err := pgxpool.New(ctx, adminURL)
+	if err != nil {
+		suite.T().Logf("Warning: Could not create admin connection to create test database: %v", err)
+		return
+	}
+	defer adminPool.Close()
+
+	// Extract database name from test URL
+	dbName := extractDatabaseName(testDBURL)
+
+	// Create database if it doesn't exist
+	createSQL := fmt.Sprintf("CREATE DATABASE %s ENCODING 'UTF8'", pgx.Identifier{dbName}.Sanitize())
+	_, err = adminPool.Exec(ctx, createSQL)
+	if err != nil && !isAlreadyExistsError(err) {
+		suite.T().Logf("Warning: Could not create test database: %v", err)
+		// Don't fail the test setup - maybe the database already exists
+	}
 }
 
 // TearDownSuite runs once after all tests in the suite

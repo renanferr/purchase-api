@@ -29,11 +29,11 @@ try {
     # Create SQL script
     $sqlScript = @"
 -- Drop existing test database if it exists
-DROP DATABASE IF EXISTS `"$testDbName`";
+DROP DATABASE IF EXISTS "$testDbName";
 
 -- Create fresh test database
-CREATE DATABASE `"$testDbName`" 
-  OWNER `"$DbUser`"
+CREATE DATABASE "$testDbName" 
+  OWNER "$DbUser"
   ENCODING 'UTF8';
 "@
 
@@ -51,14 +51,13 @@ CREATE DATABASE `"$testDbName`"
     Remove-Item $tempFile -Force
     
     Write-Host ""
-    Write-Host "✓ Test database '$testDbName' created successfully" -ForegroundColor Green
+    Write-Host "Test database '$testDbName' created successfully" -ForegroundColor Green
     Write-Host ""
     Write-Host "You can now run integration tests with:" -ForegroundColor Cyan
     Write-Host "  go test ./tests/integration -v" -ForegroundColor White
     Write-Host ""
     Write-Host "Or with custom database URL:" -ForegroundColor Cyan
-    Write-Host "  `$env:TEST_DATABASE_URL='postgres://user:pass@host:5432/$testDbName?sslmode=disable'" -ForegroundColor White
-    Write-Host "  go test ./tests/integration -v" -ForegroundColor White
+    Write-Host "  TEST_DATABASE_URL='postgres://user:pass@host:5432/$testDbName?sslmode=disable' go test ./tests/integration -v" -ForegroundColor White
     
 } catch {
     Write-Host "Error setting up test database: $_" -ForegroundColor Red
