@@ -141,6 +141,13 @@ func (s *PurchaseService) getRateFromTreasuryAndCache(ctx context.Context, purch
 
 	rateValue, currencyLabel, rateDate, err := s.treasury.LatestRateBeforeDate(ctx, currency, purchase.TransactionDate)
 	if err != nil {
+		// Check if the error is a rate not found error from the treasury provider
+		if errors.Is(err, domain.ErrRateNotFound) {
+			return nil, &domain.RateNotFoundError{
+				Currency: currency,
+				Date:     purchase.TransactionDate,
+			}
+		}
 		return nil, err
 	}
 
@@ -151,7 +158,7 @@ func (s *PurchaseService) getRateFromTreasuryAndCache(ctx context.Context, purch
 		}
 	}
 
-	// Try to cache the rate (ignore duplicate key errors)
+	// Try to cache the rate (ignore unique constraint violations)
 	if s.rateRepo != nil {
 		storedRate := domain.ExchangeRate{
 			Currency: strings.ToUpper(currencyLabel),
@@ -159,8 +166,16 @@ func (s *PurchaseService) getRateFromTreasuryAndCache(ctx context.Context, purch
 			Rate:     rateValue,
 		}
 		if err := s.rateRepo.Create(ctx, storedRate); err != nil {
-			// Ignore duplicate key errors - the rate already exists in cache
-			if !strings.Contains(err.Error(), "duplicate key") {
+			// Ignore unique constraint violations - the rate already exists in cache
+			if !errors.Is(err, domain.ErrUniqueConstraint) {
+				// Log unexpected database errors
+				if s.logger != nil && errors.Is(err, domain.ErrDatabaseOperation) {
+					s.logger.Error("failed to cache exchange rate", map[string]interface{}{
+						"currency":  currencyLabel,
+						"rate_date": rateDate.Format("2006-01-02"),
+						"error":     err.Error(),
+					})
+				}
 				return nil, err
 			}
 		}
@@ -196,11 +211,9 @@ func withinSixMonths(rateDate, purchaseDate time.Time) bool {
 }
 
 func parseDate(value string) (time.Time, error) {
+	// Only accept ISO 8601 date format (YYYY-MM-DD), no time component
 	if t, err := time.Parse("2006-01-02", value); err == nil {
 		return t, nil
 	}
-	if t, err := time.Parse(time.RFC3339, value); err == nil {
-		return t.UTC(), nil
-	}
-	return time.Time{}, errors.New("transactionDate must be a valid ISO 8601 date")
+	return time.Time{}, errors.New("transactionDate must be a valid ISO 8601 date (YYYY-MM-DD format)")
 }

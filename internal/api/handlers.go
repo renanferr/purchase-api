@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -132,10 +133,22 @@ func createPurchaseHandler(service *app.PurchaseService, logger *Logger) http.Ha
 		// Create purchase
 		purchase, err := service.CreatePurchase(ctx, req.Description, req.TransactionDate, req.AmountUsd)
 		if err != nil {
-			logger.LogCreateError(ctx, ErrorCodeValidationError, err.Error(), map[string]interface{}{
+			// Distinguish between validation errors and database/system errors
+			errorCode := ErrorCodeValidationError
+			status := http.StatusBadRequest
+			// Check if it's a database-level error using sentinel error
+			if errors.Is(err, domain.ErrDatabaseOperation) {
+				errorCode = "INTERNAL_ERROR"
+				status = http.StatusInternalServerError
+				logger.Error("database error during purchase creation", map[string]interface{}{
+					"request_id": requestID,
+					"error":      err.Error(),
+				})
+			}
+			logger.LogCreateError(ctx, errorCode, err.Error(), map[string]interface{}{
 				"request_id": requestID,
 			})
-			writeErrorResponse(w, http.StatusBadRequest, ErrorCodeValidationError, err.Error(), requestID)
+			writeErrorResponse(w, status, errorCode, err.Error(), requestID)
 			return
 		}
 
@@ -148,11 +161,22 @@ func createPurchaseHandler(service *app.PurchaseService, logger *Logger) http.Ha
 			UpdatedAt:       purchase.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		}
 
+		// Encode response to buffer first to catch serialization errors before writing headers
+		var buf bytes.Buffer
+		if err := json.NewEncoder(&buf).Encode(resp); err != nil {
+			logger.Error("failed to serialize create purchase response", map[string]interface{}{
+				"request_id": requestID,
+				"error":      err.Error(),
+			})
+			writeErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to serialize response", requestID)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Request-ID", requestID)
 		w.WriteHeader(http.StatusCreated)
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			logger.Error("failed to encode create purchase response", map[string]interface{}{
+		if _, err := w.Write(buf.Bytes()); err != nil {
+			logger.Error("failed to write create purchase response", map[string]interface{}{
 				"request_id": requestID,
 				"error":      err.Error(),
 			})
@@ -227,10 +251,25 @@ func getPurchaseHandler(service *app.PurchaseService, logger *Logger) http.Handl
 				UpdatedAt:       purchase.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 			}
 
+			var buf bytes.Buffer
+			if err := json.NewEncoder(&buf).Encode(resp); err != nil {
+				logger.Error("failed to serialize get purchase response", map[string]interface{}{
+					"request_id": requestID,
+					"error":      err.Error(),
+				})
+				writeErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to serialize response", requestID)
+				return
+			}
+
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("X-Request-ID", requestID)
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(resp)
+			if _, err := w.Write(buf.Bytes()); err != nil {
+				logger.Error("failed to write get purchase response", map[string]interface{}{
+					"request_id": requestID,
+					"error":      err.Error(),
+				})
+			}
 
 			logger.LogRetrieve(ctx, id, map[string]interface{}{
 				"request_id": requestID,
@@ -250,8 +289,8 @@ func getPurchaseHandler(service *app.PurchaseService, logger *Logger) http.Handl
 		// With currency conversion (US3) - T023-T027
 		purchase, conversion, found, err := service.GetPurchaseWithConversion(ctx, id, currency)
 		if err != nil {
-			// Check if it's a rate not found error
-			if domain.IsRateNotFoundError(err) {
+			// Check if it's a rate not found error using sentinel error
+			if errors.Is(err, domain.ErrRateNotFound) {
 				logger.LogConversionError(ctx, id, currency, ErrorCodeRateNotFound, err.Error(), map[string]interface{}{
 					"request_id": requestID,
 				})
@@ -289,15 +328,24 @@ func getPurchaseHandler(service *app.PurchaseService, logger *Logger) http.Handl
 			resp.ConvertedAmount = conversion.Amount
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("X-Request-ID", requestID)
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			logger.Error("failed to encode get purchase response", map[string]interface{}{
+		var buf bytes.Buffer
+		if err := json.NewEncoder(&buf).Encode(resp); err != nil {
+			logger.Error("failed to serialize get purchase with conversion response", map[string]interface{}{
 				"request_id": requestID,
 				"error":      err.Error(),
 			})
+			writeErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to serialize response", requestID)
 			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Request-ID", requestID)
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(buf.Bytes()); err != nil {
+			logger.Error("failed to write get purchase with conversion response", map[string]interface{}{
+				"request_id": requestID,
+				"error":      err.Error(),
+			})
 		}
 
 		if conversion != nil {
@@ -348,8 +396,11 @@ func validateCreatePurchaseRequest(req CreatePurchaseRequest) *ValidationError {
 }
 
 // isInTheFuture checks if a date is in the future (requirement from spec)
+// Normalizes both dates to midnight UTC to avoid timezone-related edge cases
 func isInTheFuture(date time.Time) bool {
-	return date.After(time.Now())
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	dateNorm := date.Truncate(24 * time.Hour)
+	return dateNorm.After(today)
 }
 
 // validateAmount checks if amount is valid positive number (FR-004, Business Rule)

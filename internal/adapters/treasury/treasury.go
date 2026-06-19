@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/renanferr/purchase-api/internal/domain"
 	"github.com/renanferr/purchase-api/internal/ports"
 	"github.com/shopspring/decimal"
 )
@@ -104,7 +105,10 @@ func (p *ExchangeRateProvider) LatestRateBeforeDate(ctx context.Context, currenc
 	}
 
 	if len(body.Data) == 0 {
-		return decimal.Zero, "", time.Time{}, fmt.Errorf("no exchange rate available for %s on or before %s", currency, before.Format("2006-01-02"))
+		return decimal.Zero, "", time.Time{}, &domain.NoRateError{
+			Currency: currency,
+			Date:     before,
+		}
 	}
 
 	rate, err := decimal.NewFromString(body.Data[0].ExchangeRate)

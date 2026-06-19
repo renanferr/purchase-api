@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/renanferr/purchase-api/internal/db"
@@ -44,7 +45,20 @@ func (r *PurchaseRepository) Create(ctx context.Context, purchase domain.Purchas
 		TransactionDate: pgtype.Date{Time: purchase.TransactionDate, Valid: true},
 		AmountUsdCents:  purchase.AmountUsdCents,
 	})
-	return err
+	if err != nil {
+		// Check for unique constraint violation (PostgreSQL error code 23505)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return &domain.UniqueConstraintError{Cause: err}
+		}
+		// Wrap other errors with context, preserving the sentinel
+		return &domain.DatabaseErrorDetails{
+			Operation: "create",
+			Table:     "purchases",
+			Cause:     err,
+		}
+	}
+	return nil
 }
 
 func (r *PurchaseRepository) GetByID(ctx context.Context, id uuid.UUID) (domain.Purchase, bool, error) {
@@ -74,7 +88,20 @@ func (r *ExchangeRateRepositoryAdapter) Create(ctx context.Context, rate domain.
 		RateDate: pgtype.Date{Time: rate.RateDate, Valid: true},
 		Rate:     pgtype.Numeric{Int: rate.Rate.Coefficient(), Exp: int32(rate.Rate.Exponent()), Valid: true},
 	})
-	return err
+	if err != nil {
+		// Check for unique constraint violation (PostgreSQL error code 23505)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return &domain.UniqueConstraintError{Cause: err}
+		}
+		// Wrap other errors with context, preserving the sentinel
+		return &domain.DatabaseErrorDetails{
+			Operation: "create",
+			Table:     "exchange_rates",
+			Cause:     err,
+		}
+	}
+	return nil
 }
 
 func (r *ExchangeRateRepositoryAdapter) GetLatestBeforeDate(ctx context.Context, currency string, before time.Time) (domain.ExchangeRate, bool, error) {

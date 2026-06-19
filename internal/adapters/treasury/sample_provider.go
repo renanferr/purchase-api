@@ -2,10 +2,10 @@ package treasury
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
+	"github.com/renanferr/purchase-api/internal/domain"
 	"github.com/renanferr/purchase-api/internal/ports"
 	"github.com/shopspring/decimal"
 )
@@ -36,6 +36,9 @@ func (s *SampleTreasuryRateProvider) LatestRateBeforeDate(ctx context.Context, c
 		return s.Rate, s.Currency, s.RecordDate, nil
 	}
 
-	// For any other currency, return an error (no rate available)
-	return decimal.Zero, "", time.Time{}, errors.New("no exchange rate available for " + currency)
+	// For any other currency, return a typed error (no rate available)
+	return decimal.Zero, "", time.Time{}, &domain.NoRateError{
+		Currency: currency,
+		Date:     before,
+	}
 }
