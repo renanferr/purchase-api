@@ -518,6 +518,11 @@ func (suite *ErrorPathTestSuite) TestErrorPathNoPlainTextErrors() {
 			suite.Contains(respBody, "code", "Error response must have code field")
 			suite.Contains(respBody, "message", "Error response must have message field")
 			suite.Contains(respBody, "timestamp", "Error response must have timestamp field")
+
+			// Verify rate_not_found returns RATE_NOT_FOUND error code
+			if tc.name == "no_plain_text_rate_not_found_error" {
+				suite.Equal("RATE_NOT_FOUND", respBody["code"], "Expected RATE_NOT_FOUND error code for missing rate")
+			}
 		})
 	}
 }
