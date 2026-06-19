@@ -145,8 +145,6 @@ Thumbs.db
 # ==================
 # PROJECT SPECIFIC
 # ==================
-# Auto-generated code (regenerated via `swag init -g cmd/purchase-api/main.go`)
-docs/docs.go
 
 # Spec Kit tool working files (auto-generated metadata)
 .specify/memory/
