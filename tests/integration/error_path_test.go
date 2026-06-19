@@ -42,10 +42,11 @@ func (suite *ErrorPathTestSuite) SetupSuite() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Get database URL from environment or use default
-	dbURL := os.Getenv("DATABASE_URL")
+	// Get test database URL from environment or use default test database
+	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/purchase_api?sslmode=disable"
+		// Default to separate test database: purchase_api_test
+		dbURL = "postgres://postgres:postgres@localhost:5432/purchase_api_test?sslmode=disable"
 	}
 
 	// Connect to database

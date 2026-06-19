@@ -458,23 +458,73 @@ go tool cover -html=coverage.out
 
 ### Integration Testing
 
+Integration tests use a **separate PostgreSQL database** (`purchase_api_test`) to keep test data isolated from your development database (`purchase_api`).
+
 **Prerequisites:**
-- Docker Desktop installed and running
+- PostgreSQL 15+ installed and running (or Docker Desktop for `docker compose up`)
 - Project dependencies installed (`go mod download`)
+
+**One-Time Setup - Create Test Database:**
+
+The project includes setup scripts to automatically create the test database:
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\setup-test-db.ps1
+```
+
+**Linux/macOS (Bash):**
+```bash
+bash scripts/setup-test-db.sh
+```
+
+**Manual Setup (if scripts unavailable):**
+```sql
+-- Connect to PostgreSQL as administrator
+psql -h localhost -p 5432 -U postgres -d postgres
+
+-- Create test database
+DROP DATABASE IF EXISTS purchase_api_test;
+CREATE DATABASE purchase_api_test 
+  OWNER postgres
+  ENCODING 'UTF8';
+```
 
 **Running Integration Tests:**
 
 ```bash
-# 1. Start PostgreSQL
-docker compose up -d
-
-# 2. Run migrations
-go run ./cmd/migrate -dir up
-
-# 3. Run integration tests
+# Run all integration tests (uses purchase_api_test database by default)
 go test ./tests/integration -v
 
-# 4. View coverage
+# Run integration tests with custom test database
+export TEST_DATABASE_URL="postgres://user:password@host:5432/custom_test_db?sslmode=disable"
+go test ./tests/integration -v
+```
+
+PowerShell:
+```powershell
+$env:TEST_DATABASE_URL="postgres://user:password@host:5432/custom_test_db?sslmode=disable"
+go test ./tests/integration -v
+```
+
+**Test Database Configuration:**
+
+| Setting | Default | Environment Variable |
+|---------|---------|---------------------|
+| Database Name | `purchase_api_test` | `TEST_DATABASE_URL` (full connection string) |
+| Host | localhost | (in connection string) |
+| Port | 5432 | (in connection string) |
+| User | postgres | (in connection string) |
+| Password | postgres | (in connection string) |
+
+**Test Lifecycle:**
+- Before each test: Database schema is created via migrations
+- During tests: Tables are cleaned between test runs
+- After tests: Test database remains for inspection (re-run setup script to reset)
+- Development database: Completely unaffected by integration tests
+
+**View Coverage:**
+```bash
 go test ./tests/integration -v -cover
 ```
 
