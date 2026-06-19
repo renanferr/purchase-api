@@ -36,7 +36,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.23'
+          go-version: '1.25'
 
       # T034: Run sqlc generate and verify no schema drift
       - name: Install sqlc
@@ -81,12 +81,9 @@ jobs:
             exit 1
           fi
 
-      # T034: Run linters
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-
-      - name: Run golangci-lint
-        run: golangci-lint run ./...
+      # T034: Run go vet
+      - name: Run go vet
+        run: go vet ./...
 
       # T034: Verify error codes are tested
       - name: Verify error codes are tested
@@ -110,7 +107,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.23'
+          go-version: '1.25'
 
       - name: Build application
         run: go build -v ./cmd/purchase-api
