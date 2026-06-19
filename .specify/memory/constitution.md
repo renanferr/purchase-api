@@ -1,50 +1,69 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+
+Version change: none → 1.0.0
+Modified principles: placeholder tokens replaced with concrete principles focused on DDD, Financial Precision, Testing, ACID, Observability
+Added sections: Additional Constraints & Security Requirements; Development Workflow & Quality Gates
+Removed sections: none
+Templates requiring updates: ⚠ .specify/templates/plan-template.md (pending review)
+					   ⚠ .specify/templates/spec-template.md (pending review)
+					   ⚠ .specify/templates/tasks-template.md (pending review)
+Follow-up TODOs: none
+-->
+
+# Purchase API Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Domain-Driven Design & Hexagonal Architecture (NON-NEGOTIABLE)
+The system MUST be organized around a clear domain model for purchases. Implement a hexagonal (ports-and-adapters)
+architecture: core domain and application logic must have no framework or infrastructure dependencies. All
+external interactions (HTTP, DB, currency provider) MUST be via well-defined ports and adapters so the domain
+is independently testable and replaceable.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Financial Precision & Safety (NON-NEGOTIABLE)
+All monetary values MUST use exact, fixed-point arithmetic. Use integer cents or a language native arbitrary-precision
+decimal type (e.g., `decimal` in C#) for storage and calculations. Rounding rules MUST be explicit: round to the
+nearest cent using bankers rounding only where domain analysis requires; otherwise use half-away-from-zero.
+Validation: descriptions ≤ 50 characters; transaction dates must be valid ISO 8601 dates; purchase amounts must be
+positive and stored with cent precision.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Test-First and Automated Quality Gates (NON-NEGOTIABLE)
+Development MUST be driven by automated tests. Unit tests MUST cover domain invariants and validation. Integration
+tests MUST cover persistence, currency conversion flows, and API contracts. Contract tests are REQUIRED for
+external API expectations (e.g., exchange-rate provider). CI pipelines MUST block merges on failing tests.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Data Integrity & ACID Guarantees
+Persistence MUST be implemented with an ACID-compliant datastore. Transactions MUST be used to maintain
+consistency for multi-step operations. The default production recommendation is PostgreSQL; lightweight
+embedded databases (SQLite) are acceptable for local development if transactional semantics are preserved.
+Migrations, schema versioning, and durable backups are REQUIRED for production readiness.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Observability, Simplicity & Security
+Prefer simple, auditable designs. Provide structured logs for domain events and errors, and expose health and
+metrics endpoints for operational observability. Secure all external endpoints with TLS, validate inputs, and
+minimize sensitive data storage. Secrets management and least-privilege access are REQUIRED for production.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Additional Constraints & Security Requirements
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- Encryption in transit (TLS) is REQUIRED for all external traffic.
+- Store only the minimum necessary personal data; avoid storing raw payment instrument data.
+- Use parameterized queries or an ORM that prevents injection vulnerabilities.
+- Protect secrets (API keys, DB credentials) via environment-based secret stores.
+- Ensure GDPR/PII controls are considered if applicable; otherwise document why not applicable.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow, Review Process & Quality Gates
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- Branching: feature branches per work item; PRs for all changes; require at least one approving reviewer.
+- Tests: unit + integration + contract tests required for merged changes. CI must run tests and linters.
+- Code style: follow language/community conventions; run automatic formatters in CI.
+- Deployments: require passing CI, migration plan, and an approved rollout strategy for production releases.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+The constitution defines mandatory engineering practices for the Purchase API. Amendments MUST be documented
+and include a rationale and migration plan. Non-normative guidance (examples, templates) may be updated freely,
+but changes to core principles require a MINOR or MAJOR version bump depending on impact.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-06-17 | **Last Amended**: 2026-06-17
+

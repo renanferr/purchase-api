@@ -1,0 +1,25 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - bodyclose
+    - errcheck
+    - gocritic
+    - gofmt
+    - goimports
+    - golint
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - typecheck
+    - unused
+
+issues:
+  exclude-rules:
+    # Allow main() function to be excluded from linting
+    - path: cmd/
+      linters:
+        - gochecknoinits

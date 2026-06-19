@@ -1,0 +1,202 @@
+basePath: /
+definitions:
+  api.CreatePurchaseRequest:
+    description: Purchase creation details
+    properties:
+      amountUsd:
+        example: "1500.00"
+        type: string
+      description:
+        example: Office supplies purchase
+        type: string
+      transactionDate:
+        example: "2026-06-15"
+        type: string
+    type: object
+  api.ErrorResponse:
+    description: API error with code and message
+    properties:
+      code:
+        example: VALIDATION_ERROR
+        type: string
+      message:
+        example: Amount must be a positive number
+        type: string
+      timestamp:
+        example: "2026-06-18T14:30:00Z"
+        type: string
+    type: object
+  api.HealthResponse:
+    description: Health status of the API
+    properties:
+      error:
+        example: database not available
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+  api.PurchaseResponse:
+    description: Complete purchase details with optional conversion
+    properties:
+      amountUsd:
+        example: "1500.00"
+        type: string
+      convertedAmount:
+        example: "1275.00"
+        type: string
+      convertedCurrency:
+        example: EUR
+        type: string
+      createdAt:
+        example: "2026-06-18T14:30:00Z"
+        type: string
+      description:
+        example: Office supplies purchase
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      rate:
+        example: "0.85"
+        type: string
+      rateDate:
+        example: "2026-06-15"
+        type: string
+      transactionDate:
+        example: "2026-06-15"
+        type: string
+      updatedAt:
+        example: "2026-06-18T14:30:00Z"
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: RESTful API for managing purchase transactions with multi-currency
+    support
+  termsOfService: http://swagger.io/terms/
+  title: Purchase API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      description: Check if the API is running and responding to requests
+      parameters:
+      - description: Request ID for tracing
+        in: header
+        name: X-Request-ID
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.HealthResponse'
+      summary: Liveness probe
+      tags:
+      - health
+  /health/ready:
+    get:
+      description: Check if the API is ready to handle requests. Verifies database
+        connectivity.
+      parameters:
+      - description: Request ID for tracing
+        in: header
+        name: X-Request-ID
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.HealthResponse'
+        "503":
+          description: Service not ready - database unavailable
+          schema:
+            $ref: '#/definitions/api.HealthResponse'
+      summary: Readiness probe
+      tags:
+      - health
+  /purchases:
+    post:
+      consumes:
+      - application/json
+      description: Create a new purchase transaction with description, date, and USD
+        amount. Validates that description is 1-50 chars, date is in ISO 8601 format
+        and not in the future, and amount is positive.
+      parameters:
+      - description: Request ID for tracing
+        in: header
+        name: X-Request-ID
+        type: string
+      - description: Purchase details
+        in: body
+        name: purchase
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreatePurchaseRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api.PurchaseResponse'
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Create a new purchase
+      tags:
+      - purchases
+  /purchases/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a purchase by ID. Optionally provide a currency code to
+        convert the amount using historical exchange rates from the transaction date
+        or earlier (within 6 months).
+      parameters:
+      - description: Purchase ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: ISO 4217 currency code for conversion (e.g., EUR, GBP, JPY)
+        in: query
+        name: currency
+        type: string
+      - description: Request ID for tracing
+        in: header
+        name: X-Request-ID
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.PurchaseResponse'
+        "400":
+          description: Invalid currency, invalid UUID, or rate not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Purchase not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get a purchase
+      tags:
+      - purchases
+schemes:
+- http
+- https
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-API-Key
+    type: apiKey
+swagger: "2.0"

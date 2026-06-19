@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: purchase_api
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      # T034: Run sqlc generate and verify no schema drift
+      - name: Install sqlc
+        run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
+      - name: Generate sqlc code
+        run: sqlc generate
+
+      - name: Verify no schema drift
+        run: |
+          if [ -n "$(git diff db/)" ]; then
+            echo "Schema has drifted. Please run 'sqlc generate' and commit the changes."
+            git diff db/
+            exit 1
+          fi
+
+      # T034: Apply migrations to test database
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 1
+          done
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/purchase_api?sslmode=disable
+        run: go run ./cmd/migrate -dir up
+
+      # T034: Run tests with coverage
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/purchase_api?sslmode=disable
+        run: |
+          go test -v -race -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | tail -1
+
+      # T034: Check code formatting
+      - name: Check code formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Code formatting issues found. Please run 'gofmt -w .'"
+            gofmt -l .
+            exit 1
+          fi
+
+      # T034: Run linters
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+      - name: Run golangci-lint
+        run: golangci-lint run ./...
+
+      # T034: Verify error codes are tested
+      - name: Verify error codes are tested
+        run: |
+          ERROR_CODES=("VALIDATION_ERROR" "INVALID_DATE" "NEGATIVE_AMOUNT" "DESCRIPTION_TOO_LONG" "MISSING_FIELD" "RATE_NOT_FOUND" "NOT_FOUND")
+          for code in "${ERROR_CODES[@]}"; do
+            if ! grep -r "$code" tests/ > /dev/null; then
+              echo "Error code $code not found in tests"
+              exit 1
+            fi
+          done
+          echo "All 7 error codes are tested ✓"
+
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build application
+        run: go build -v ./cmd/purchase-api
+
+      - name: Build migration CLI
+        run: go build -v ./cmd/migrate

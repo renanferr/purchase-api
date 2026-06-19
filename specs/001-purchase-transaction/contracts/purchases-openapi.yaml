@@ -1,0 +1,49 @@
+openapi: 3.0.3
+info:
+  title: Purchase API
+  version: 1.0.0
+paths:
+  /purchases:
+    post:
+      summary: Create a purchase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  maxLength: 50
+                transactionDate:
+                  type: string
+                  format: date
+                amountUsd:
+                  type: number
+                  format: decimal
+              required: [description, transactionDate, amountUsd]
+      responses:
+        '201':
+          description: Created
+  /purchases/{id}:
+    get:
+      summary: Get purchase by id (optional currency conversion)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: currency
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request
+        '404':
+          description: Not Found

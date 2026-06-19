@@ -1,0 +1,162 @@
+# ==================
+# BINARIES & BUILD
+# ==================
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+*.o
+*.a
+*.class
+*.jar
+
+# Build directories
+bin/
+build/
+dist/
+out/
+target/
+
+# Compiled binaries in repo root
+purchase-api.exe
+migrate.exe
+
+# ==================
+# TESTING
+# ==================
+# Test binary, built with `go test -c`
+*.test
+*.cover
+*.out
+coverage.txt
+coverage.html
+coverage.out
+coverage*.out
+coverage_*.out
+*.prof
+*.pprof
+
+# ==================
+# GO SPECIFIC
+# ==================
+# Go workspace file
+go.work
+go.work.sum
+
+# Go mod cache
+vendor/
+go.sum.bak
+*.mod.bak
+
+# Go test cache
+.test-cache/
+
+# ==================
+# ENVIRONMENT & SECRETS
+# ==================
+# Environment files (local secrets - DO NOT COMMIT)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Private keys and credentials
+*.pem
+*.key
+*.pfx
+*.p12
+secrets/
+credentials.json
+service-account-key.json
+
+# ==================
+# IDE & EDITOR
+# ==================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+*.sublime-workspace
+*.sublime-project
+.DS_Store
+Thumbs.db
+
+# VS Code specific
+.vscode/extensions.json
+.vscode/launch.json
+.vscode/tasks.json
+
+# JetBrains
+*.ipr
+*.iws
+.gradle/
+*.iml
+
+# ==================
+# DATABASE
+# ==================
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+postgres-data/
+mysql-data/
+mongo-data/
+
+# ==================
+# LOGGING
+# ==================
+*.log
+*.log.*
+logs/
+debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==================
+# TEMPORARY FILES
+# ==================
+*.tmp
+*.temp
+*.backup
+*.bak
+*~
+.project
+.classpath
+*.sublime-workspace
+.cache/
+
+# ==================
+# OPERATING SYSTEM
+# ==================
+.DS_Store
+Thumbs.db
+.AppleDouble
+.LSOverride
+*.swp
+
+# ==================
+# PROJECT SPECIFIC
+# ==================
+# Auto-generated code (regenerated via `swag init -g cmd/purchase-api/main.go`)
+docs/docs.go
+
+# Spec Kit tool working files (auto-generated metadata)
+.specify/memory/
+.specify/feature.json
+.specify/init-options.json
+.specify/integration.json
+.specify/integrations/
+
+# ==================
+# DOCKER & COMPOSE
+# ==================
+docker-compose.override.yml
+.dockerignore

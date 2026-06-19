@@ -1,0 +1,343 @@
+openapi: 3.0.3
+info:
+  title: Purchase API
+  version: 1.0.0
+  description: Store and retrieve purchases with optional Treasury-based currency conversion
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /purchases:
+    post:
+      summary: Create a purchase
+      operationId: createPurchase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePurchaseRequest'
+      responses:
+        '201':
+          description: Purchase created successfully
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+              description: Request ID for tracing (if provided by client)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseResponse'
+        '400':
+          description: Validation error
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                descriptionTooLong:
+                  value:
+                    code: DESCRIPTION_TOO_LONG
+                    message: Description exceeds 50 character limit
+                    timestamp: "2026-06-18T14:30:00Z"
+                negativeAmount:
+                  value:
+                    code: NEGATIVE_AMOUNT
+                    message: Amount must be a positive number
+                    timestamp: "2026-06-18T14:30:00Z"
+                invalidDate:
+                  value:
+                    code: INVALID_DATE
+                    message: Purchase date cannot be in the future
+                    timestamp: "2026-06-18T14:30:00Z"
+
+  /purchases/{id}:
+    get:
+      summary: Get purchase by id (optionally with currency conversion)
+      operationId: getPurchase
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Purchase ID
+        - name: currency
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}$'
+            maxLength: 3
+          description: ISO 4217 currency code (3-letter, case-insensitive; e.g., EUR, GBP, JPY)
+        - name: X-Request-ID
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Optional request ID for tracing
+      responses:
+        '200':
+          description: Purchase retrieved successfully
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+              description: Request ID for tracing (if provided by client)
+            Content-Type:
+              schema:
+                type: string
+                enum: [application/json]
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PurchaseResponseNoConversion'
+                  - $ref: '#/components/schemas/PurchaseResponseWithConversion'
+              examples:
+                noConversion:
+                  summary: Purchase without currency conversion
+                  value:
+                    id: 550e8400-e29b-41d4-a716-446655440000
+                    description: Office Supplies
+                    transactionDate: "2026-06-15"
+                    amountUsd: "1500.00"
+                withConversion:
+                  summary: Purchase with currency conversion
+                  value:
+                    id: 550e8400-e29b-41d4-a716-446655440000
+                    description: Office Supplies
+                    transactionDate: "2026-06-15"
+                    amountUsd: "1500.00"
+                    exchangeRate:
+                      currency: EUR
+                      rateDate: "2026-06-12"
+                      rate: "0.92"
+                    convertedAmount: "1380.00"
+        '400':
+          description: Bad request (validation error or no rate found)
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                rateNotFound:
+                  value:
+                    code: RATE_NOT_FOUND
+                    message: "No exchange rate available for EUR on or before 2026-06-15"
+                    timestamp: "2026-06-18T14:30:00Z"
+                invalidCurrency:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: "Invalid currency code: XYZ. Expected ISO 4217 3-letter code (case-insensitive)"
+                    timestamp: "2026-06-18T14:30:00Z"
+        '404':
+          description: Purchase not found
+          headers:
+            X-Request-ID:
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: NOT_FOUND
+                message: "Purchase with ID 550e8400-e29b-41d4-a716-446655440000 not found"
+                timestamp: "2026-06-18T14:30:00Z"
+
+components:
+  schemas:
+    CreatePurchaseRequest:
+      type: object
+      required:
+        - description
+        - transactionDate
+        - amountUsd
+      properties:
+        description:
+          type: string
+          maxLength: 50
+          example: "Office Supplies"
+          description: Purchase description (max 50 characters)
+        transactionDate:
+          type: string
+          format: date
+          example: "2026-06-15"
+          description: ISO 8601 date (YYYY-MM-DD) of the purchase
+        amountUsd:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+          example: "1500.00"
+          description: Amount in USD as string (e.g., "1234.56") for financial precision; must be positive
+
+    PurchaseResponse:
+      type: object
+      required:
+        - id
+        - description
+        - transactionDate
+        - amountUsd
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+          description: Unique purchase identifier
+        description:
+          type: string
+          example: "Office Supplies"
+          description: Purchase description
+        transactionDate:
+          type: string
+          format: date
+          example: "2026-06-15"
+          description: ISO 8601 date of the purchase
+        amountUsd:
+          type: string
+          example: "1500.00"
+          description: Amount in USD as string (e.g., "1234.56") for financial precision
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-06-18T14:30:00Z"
+          description: Timestamp when purchase was created
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-06-18T14:30:00Z"
+          description: Timestamp of last update
+
+    PurchaseResponseNoConversion:
+      type: object
+      required:
+        - id
+        - description
+        - transactionDate
+        - amountUsd
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        transactionDate:
+          type: string
+          format: date
+        amountUsd:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      description: Purchase response without currency conversion
+
+    PurchaseResponseWithConversion:
+      type: object
+      required:
+        - id
+        - description
+        - transactionDate
+        - amountUsd
+        - exchangeRate
+        - convertedAmount
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        transactionDate:
+          type: string
+          format: date
+        amountUsd:
+          type: string
+          description: Original amount in USD as string
+        exchangeRate:
+          $ref: '#/components/schemas/ExchangeRateInfo'
+        convertedAmount:
+          type: string
+          example: "1380.00"
+          description: Converted amount as string (rounded to 2 decimals using half-away-from-zero)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      description: Purchase response with currency conversion
+
+    ExchangeRateInfo:
+      type: object
+      required:
+        - currency
+        - rateDate
+        - rate
+      properties:
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          example: EUR
+          description: ISO 4217 currency code (3-letter uppercase)
+        rateDate:
+          type: string
+          format: date
+          example: "2026-06-12"
+          description: Date the exchange rate was published (ISO 8601)
+        rate:
+          type: string
+          example: "0.92"
+          description: Exchange rate as string (multiplier from USD to target currency); convertedAmount = amountUsd × rate
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+        - timestamp
+      properties:
+        code:
+          type: string
+          enum:
+            - VALIDATION_ERROR
+            - INVALID_DATE
+            - NEGATIVE_AMOUNT
+            - DESCRIPTION_TOO_LONG
+            - MISSING_FIELD
+            - RATE_NOT_FOUND
+            - NOT_FOUND
+          description: Error code for programmatic handling
+        message:
+          type: string
+          example: "Description exceeds 50 character limit"
+          description: Human-readable error message
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-06-18T14:30:00Z"
+          description: ISO 8601 timestamp of the error
