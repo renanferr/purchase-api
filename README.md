@@ -280,6 +280,107 @@ go build -o bin/purchase-api ./cmd/purchase-api
 
 The API will start on `http://localhost:8080`
 
+## Make Commands
+
+The project includes a comprehensive Makefile with convenient commands for common tasks. Use `make help` to see all available commands.
+
+### Quick Start with Make
+
+**Recommended: Full Docker Stack (One Command)**
+```bash
+make run-docker
+# Builds containers, starts postgres + app, output shows API endpoints
+```
+
+**Local Development with Docker Postgres**
+```bash
+# Terminal 1: Start postgres in Docker
+make docker-up
+
+# Terminal 2: Run app with live code reloading
+make run-dev
+# API available at http://localhost:8080
+
+# Stop containers when done
+make docker-down
+```
+
+**Local Development with Compiled Binary**
+```bash
+# Terminal 1: Start postgres in Docker
+make docker-up
+
+# Terminal 2: Build and run the binary
+make build
+make run-binary
+# API available at http://localhost:8080
+
+# Stop containers when done
+make docker-down
+```
+
+### Make Command Reference
+
+**Building**
+
+| Command | Purpose |
+|---------|---------|
+| `make build` | Build app binary (with cache) |
+| `make build-no-cache` | Build app binary (clears build cache first) |
+| `make install-tools` | Install development tools (sqlc, swag) |
+
+**Running the App**
+
+| Command | Purpose |
+|---------|---------|
+| `make run-dev` | Run with `go run` (live reloading, postgres required) |
+| `make run-binary` | Run compiled binary (postgres required) |
+| `make run-docker` | Run full stack in Docker (postgres + app) |
+
+**Docker Operations**
+
+| Command | Purpose |
+|---------|---------|
+| `make docker-up` | Start postgres + app containers |
+| `make docker-down` | Stop all containers |
+| `make docker-build` | Build only the app Docker image |
+| `make docker-compose-build` | Build all docker-compose images (postgres + app) |
+
+**Testing & Quality**
+
+| Command | Purpose |
+|---------|---------|
+| `make test` | Run all unit + integration tests |
+| `make unit-test` | Run unit tests only (fast) |
+| `make integration-test` | Run integration tests (requires database) |
+| `make coverage` | Generate HTML coverage report |
+| `make lint` | Run code linters |
+| `make fmt` | Format code with gofmt |
+| `make vet` | Run go vet analysis |
+
+**Database**
+
+| Command | Purpose |
+|---------|---------|
+| `make migrate-up` | Run pending migrations |
+| `make migrate-down` | Rollback migrations |
+
+**Code Generation**
+
+| Command | Purpose |
+|---------|---------|
+| `make sqlc-generate` | Generate type-safe database code from SQL |
+| `make swagger-generate` | Generate Swagger/OpenAPI docs |
+
+**Utilities**
+
+| Command | Purpose |
+|---------|---------|
+| `make deps` | Download and verify dependencies |
+| `make tidy` | Tidy go.mod and go.sum |
+| `make clean` | Clean build artifacts |
+| `make help` | Display all available commands |
+
 ## Configuration
 
 ### Environment Variables
