@@ -70,7 +70,8 @@ func main() {
 	rateRepo := db.NewExchangeRateRepository(pool)
 
 	// Create service with all dependencies (wired via config)
-	service := app.NewPurchaseService(purchaseRepo, rateRepo, cfg.TreasuryProvider)
+	logger := api.NewLogger()
+	service := app.NewPurchaseService(purchaseRepo, rateRepo, cfg.TreasuryProvider).WithLogger(logger)
 
 	// Set up HTTP router directly (already a chi router from NewRouter)
 	handler := api.NewRouter(service, api.WithDatabasePool(pool))

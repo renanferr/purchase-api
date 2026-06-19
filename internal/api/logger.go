@@ -132,6 +132,18 @@ func (l *Logger) LogConversionError(ctx context.Context, purchaseID, currency, e
 	l.logger.LogAttrs(ctx, slog.LevelError, "currency conversion failed", attrs...)
 }
 
+// LogTreasuryAPIQuery logs a Treasury API rate lookup
+func (l *Logger) LogTreasuryAPIQuery(ctx context.Context, currency, purchaseDate, purchaseID string) {
+	attrs := []slog.Attr{
+		slog.String("component", "purchase_service"),
+		slog.String("currency", currency),
+		slog.String("purchase_date", purchaseDate),
+		slog.String("purchase_id", purchaseID),
+	}
+
+	l.logger.LogAttrs(ctx, slog.LevelInfo, "querying treasury api for exchange rate", attrs...)
+}
+
 // LogInfo logs an informational message with structured context
 func (l *Logger) LogInfo(ctx context.Context, component, message string, metadata map[string]interface{}) {
 	attrs := []slog.Attr{

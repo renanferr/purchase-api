@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "github.com/example/purchase-api/docs"
+	_ "github.com/renanferr/purchase-api/docs"
 )
 
 // @title Purchase API

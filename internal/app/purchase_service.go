@@ -23,10 +23,16 @@ type PurchaseService struct {
 	purchaseRepo ports.PurchaseRepository
 	rateRepo     ports.ExchangeRateRepository
 	treasury     ports.TreasuryRateProvider
+	logger       ports.Logger
 }
 
 func NewPurchaseService(purchaseRepo ports.PurchaseRepository, rateRepo ports.ExchangeRateRepository, treasury ports.TreasuryRateProvider) *PurchaseService {
-	return &PurchaseService{purchaseRepo: purchaseRepo, rateRepo: rateRepo, treasury: treasury}
+	return &PurchaseService{purchaseRepo: purchaseRepo, rateRepo: rateRepo, treasury: treasury, logger: nil}
+}
+
+func (s *PurchaseService) WithLogger(logger ports.Logger) *PurchaseService {
+	s.logger = logger
+	return s
 }
 
 func (s *PurchaseService) CreatePurchase(ctx context.Context, description, transactionDate, amountUsd string) (domain.Purchase, error) {
@@ -128,6 +134,11 @@ func (s *PurchaseService) getConversionRate(ctx context.Context, purchase domain
 
 // getRateFromTreasuryAndCache fetches rate from treasury provider and caches it
 func (s *PurchaseService) getRateFromTreasuryAndCache(ctx context.Context, purchase domain.Purchase, currency string) (*CurrencyConversion, error) {
+	// Log the Treasury API call for cache validation during testing
+	if s.logger != nil {
+		s.logger.LogTreasuryAPIQuery(ctx, currency, purchase.TransactionDate.Format("2006-01-02"), purchase.ID.String())
+	}
+
 	rateValue, currencyLabel, rateDate, err := s.treasury.LatestRateBeforeDate(ctx, currency, purchase.TransactionDate)
 	if err != nil {
 		return nil, err

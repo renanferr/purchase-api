@@ -22,3 +22,7 @@ type ExchangeRateRepository interface {
 type TreasuryRateProvider interface {
 	LatestRateBeforeDate(ctx context.Context, currency string, before time.Time) (decimal.Decimal, string, time.Time, error)
 }
+
+type Logger interface {
+	LogTreasuryAPIQuery(ctx context.Context, currency, purchaseDate, purchaseID string)
+}

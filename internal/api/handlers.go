@@ -388,10 +388,6 @@ func healthHandler(logger *Logger) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "ok",
 		})
-
-		logger.Info("health check", map[string]interface{}{
-			"request_id": requestID,
-		})
 	}
 }
 
@@ -434,10 +430,6 @@ func readinessHandler(pool *pgxpool.Pool, logger *Logger) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "ok",
-		})
-
-		logger.Info("readiness check passed", map[string]interface{}{
-			"request_id": requestID,
 		})
 	}
 }
