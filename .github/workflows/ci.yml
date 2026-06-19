@@ -66,13 +66,11 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/purchase_api?sslmode=disable
         run: go run ./cmd/migrate -dir up
 
-      # T034: Run tests with coverage
+      # T034: Run tests
       - name: Run tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/purchase_api?sslmode=disable
-        run: |
-          go test -v -race -coverprofile=coverage.out ./...
-          go tool cover -func=coverage.out | tail -1
+        run: go test -v -race ./...
 
       # T034: Check code formatting
       - name: Check code formatting
