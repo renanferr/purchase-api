@@ -1,4 +1,4 @@
-.PHONY: help build test unit-test integration-test clean lint fmt install-tools
+.PHONY: help build build-no-cache run-dev run-binary test unit-test integration-test clean lint fmt install-tools docker-build docker-compose-build docker-up docker-down run-docker migrate-up migrate-down coverage vet tidy deps sqlc-generate swagger-generate
 
 # Variables
 GO := go
@@ -20,7 +20,10 @@ endif
 help: ## Display this help message
 	@echo Available targets:
 	@echo.
-	@echo   build                 - Build the application
+	@echo   build                 - Build the application binary
+	@echo   build-no-cache        - Build the application binary (no cache)
+	@echo   run-dev               - Run the application with 'go run' (requires postgres in docker)
+	@echo   run-binary            - Run the application binary (requires build and postgres in docker)
 	@echo   install-tools         - Install required development tools
 	@echo   unit-test             - Run unit tests only
 	@echo   integration-test      - Run integration tests only (requires database)
@@ -31,9 +34,11 @@ help: ## Display this help message
 	@echo   vet                   - Run go vet
 	@echo   migrate-up            - Run database migrations
 	@echo   migrate-down          - Rollback database migrations
-	@echo   docker-build          - Build Docker image
+	@echo   docker-build          - Build Docker image of the app
+	@echo   docker-compose-build  - Build docker-compose (postgres + app)
 	@echo   docker-up             - Start Docker containers
 	@echo   docker-down           - Stop Docker containers
+	@echo   run-docker            - Run the app in docker (full stack)
 	@echo   clean                 - Clean build artifacts
 	@echo   deps                  - Download and verify dependencies
 	@echo   tidy                  - Tidy go.mod and go.sum
@@ -46,8 +51,23 @@ install-tools: ## Install required development tools
 	$(GO) install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 	$(GO) install github.com/swaggo/swag/cmd/swag@latest
 
-build: ## Build the application
+build: ## Build the application binary
 	$(GO) build -o bin/purchase-api ./cmd/purchase-api
+
+build-no-cache: ## Build the application binary (no cache)
+	$(GO) clean -cache
+	$(GO) build -o bin/purchase-api ./cmd/purchase-api
+
+run-dev: ## Run the application with 'go run' (requires postgres in docker)
+	@echo Starting purchase-api with 'go run'...
+	@echo Make sure postgres is running: make docker-up
+	$(GO) run ./cmd/purchase-api/main.go
+
+run-binary: build ## Run the application binary (requires build & postgres in docker)
+	@echo Starting purchase-api binary...
+	@echo Make sure postgres is running: make docker-up
+	@echo.
+	./bin/purchase-api
 
 # Unit Tests
 unit-test: ## Run unit tests only
@@ -94,14 +114,28 @@ vet: ## Run go vet
 	$(GO) vet ./...
 
 # Docker
-docker-build: ## Build Docker image
+docker-build: ## Build Docker image of the app
 	docker build -t purchase-api:latest .
+
+docker-compose-build: ## Build docker-compose (postgres + app)
+	docker-compose build
 
 docker-up: ## Start Docker containers (docker-compose)
 	docker-compose up -d
 
 docker-down: ## Stop Docker containers
 	docker-compose down
+
+run-docker: docker-compose-build ## Run the app in docker (full stack)
+	@echo Starting purchase-api in Docker...
+	docker-compose up -d
+ifeq ($(OS),Windows_NT)
+	@timeout /t 5 /nobreak
+else
+	@sleep 5
+endif
+	@echo Purchase API is running at http://localhost:8080
+	@echo Database: postgres://postgres:postgres@localhost:5432/purchase_api
 
 # Utilities
 clean: ## Clean build artifacts and test files
